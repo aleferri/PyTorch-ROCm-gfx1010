@@ -2,12 +2,7 @@
 
 If you have a new installation then run chaiNNer, let it download all the basic components but don't install any dependencies.
 
-Then execute:
+Then ensure your distro packages are installed, that the venv can access global packages, make it install all, then, guess what: pip uninstall torch torchvision
 
-    cd <your_chaiNNer_directory>/python/python/bin
-    ./chainner_pip install <torch.whl> <torchvision.whl>
-
-Replace <torch.whl\> and <torchvision.whl\> with paths to the wheels you built.
-
-After that run chaiNNer and install all the rest of the dependencies.
+After that run chaiNNer. Remember to keep uninstalling the torch/torchvision wheels that will get downloaded from times to times.
 

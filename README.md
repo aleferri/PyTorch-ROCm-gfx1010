@@ -11,14 +11,12 @@
 7. [Triton](#triton)
 8. [TorchVision](#torchvision)
 9. [TorchAudio](#torchaudio)
-10. [ONNX](#onnx)
-11. [Extras](#extras)
 
 For usage examples (chaiNNer, ComfyUI, etc.) see the \`[usage](usage)\` directory.
 
-## Pre-built wheels DO NOT USE, IT WAS BUILD FOR DEBIAN
+## Pre-built rpms
 
-Pre-built wheels of PyTorch, TorchVision and TorchAudio (built for ROCm 6.4.3 and Python 3.11) are located in the \`prebuilt\` directory.
+Pre-built rpms of PyTorch (built for Fedora 43) are located in the \`prebuilt\` directory.
 
 There is no guarantee that those will work with your particular configuration of video card, ROCm version, Python version, PyTorch version, kernel version, etc.
 
@@ -54,22 +52,13 @@ To begin with you have to clone the official build for fedora of python-torch, n
 git clone https://src.fedoraproject.org/rpms/python-torch.git
 git checkout f43
 ```
-Go to Iceland for a week, if you are already in Iceland, come in Italy instead
-
-
-
-Download and unpack the missing RocBLAS libraries into */opt/rocm/lib/rocblas/library*:
-
-```
-wget https://github.com/Efenstor/PyTorch-ROCm-gfx1010/raw/refs/heads/main/prebuilt/rocblas_library_gfx1010.tar.gz
-tar xv -f rocblas_library_gfx1010.tar.gz -C /opt/rocm/lib/rocblas/library
-```
 
 ## Build
 
 edit the spec file to include "export PYTORCH_ROCM_ARCH=gfx1010" (on newline, without quotes) after "export USE_ROCM=ON" (also without quotes)
 
 ```
+cd python-torch
 sudo dnf buildep python-torch.spec
 spectool -gR python-torch.spec
 cp *.patch ~/buildroot/SOURCES
@@ -78,23 +67,28 @@ rpmbuild -ba python-torch.spec
 
 ### Go on with your life for about a week, then come back and hope to find the compilation finished
 
-if something has failed, well, bad luck i guess, i'll add an official troubleshooting session someday
+if something has failed, well, bad luck i guess, if you did the exact thing for the correct distro version, then check that you can build *standard* torch with the untouched spec file, if so, then the problem lies in inherent incompatiblity of RDNA 1 with your desired version of torch
 
-The resulting RPM will be in the *~/rpmbuild/RPM*
+The resulting RPM will be in the *~/rpmbuild/RPMS*
 
 ### Install PyTorch
 
-To install the built RPM execute:
+To install your own version:
+1. uninstall with purge any version of python-torch that is not your own
+2. install your generated RPM, to do so execute:
 
-    TODO, i still finishing the compilation
+```
+cd ~/rpmbuild/rpms/<your-torch-version>.rpm
+dnf install --norepolist <your-torch-version>.rpm
+```
 
 Notes:
 
-1. You will build the version that your distro also provide, but with gfx1010 support. If a file spec for an earlier version of torch, but for a previous distro exists, it is possible that switching to the correct branch and fiddling some deps in the spec file will give you a working build, but i don't know.
-2. TODO
-3. This command should be executed inside a venv in which you have your program (e.g. ComfyUI) installed, not the venv in which you had your PyTorch built.
-4. In the case you're also going to build TorchVision and TorchAudio (which are highly recommended) install it also inside the PyTorch build venv.
-5. If you're installing TorchVision and/or TorchAudio be sure to install PyTorch together with them in a single `pip install` command because they are dependent of the particular PyTorch version.
+1. You will build the version that your distro also provide, but with gfx1010 support. If a file spec for an earlier version of torch, but for a previous distro exists, it is possible that switching to the correct branch and fiddling some deps in the spec file will give you a working build, but don't count on it.
+2. At this point is possible that you built a version that is supported by your current python, but only because you built it custom. I.E. Fedora 43 comes with python-torch-2.8.0, that is officially incompatible with python 3.14, but since the spec file was created for the specific combination, the build will work anyway.
+3. No, you can't convince pip of this fact. Be prepared at *pip install -r requirements* followed by *pip uninstall torch*, **forever**.
+4. In the case you're also going to need TorchVision and TorchAudio or Triton install them also by dnf, they will work with your own custom version of Torch, after all you only changed the target compilation.
+5. If you're using a venv (and that's a good idea), after the usual uninstall of torch & torchvision & torchaudio & triton, allow the venv to use globally installed modules by switching *false* -> *true* the flag ``` include-system-site-packages ``` in pyvenv.cfg, just be sure to not pollute the global space with random libraries 
 
 ## Troubleshooting
 
@@ -108,28 +102,17 @@ CMAKE_BUILD_PARALLEL_LEVEL="$(nproc --all)" MAKEOPTS="-j$(nproc --all)" CMAKE_PO
 
 ## Triton
 
-[Triton 3.4.0](https://download.pytorch.org/whl/pytorch-triton-rocm/) seems to be working but I didn't test it too much:
-
-    wget https://download.pytorch.org/whl/pytorch_triton_rocm-3.4.0-cp311-cp311-linux_x86_64.whl
-    pip install pytorch_triton_rocm-3.4.0-cp311-cp311-linux_x86_64.whl
+See notes
 
 ## TorchVision
 
-This build should be done as you did with Torch package, find your packaged fedora version, go to the build task on koji/copr/whatever, find the repository of the spec, clone the spec and so on.
-
-The resulting rpm will be in the *RPM* directory.
+See notes
 
 ## TorchAudio
 
-This built should be done in a venv with the previously built pytorch wheel installed.
-
-    git clone https://github.com/pytorch/audio.git --branch=release/2.8 --recurse-submodules audio-release-2.8-git
-    cd audio-release-2.8-git
-    CMAKE_BUILD_PARALLEL_LEVEL="$(nproc --all)" MAKEOPTS="-j$(nproc --all)" python3 setup.py bdist_wheel
-
-The resulting wheel will be in the *~/rpmbuild/RPM* directory.
+See notes
 
 ## GENERAL ISSUES
 
-This guide suppose that one torch (and relatives!) build for the entire system is sufficient, if having a working torch as a global dependency do not work for your usecase, you can use a virtual machine/docker for each version of torch, not efficient, i know; or you can investigate on converting a rpm to whl, there are tools that do whl to rpm already, perhaps it is possible to do the reverse 
+This guide suppose that one torch (and relatives!) version for the entire system is sufficient, if having a working torch as a global dependency do not work for your usecase, you can use a virtual machine/docker for each version of torch, not efficient, i know; or you can investigate on converting a rpm to whl, there are tools that do whl to rpm already, perhaps it is possible to do the reverse 
 
