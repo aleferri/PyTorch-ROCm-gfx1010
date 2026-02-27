@@ -1,13 +1,17 @@
+
 #!/bin/sh
-# copyleft 2025 Efenstor
+# copyleft 2025-2026 Efenstor
 
 # Run with -h or -? to display help
 
-# Defaults
+# To use with Zluda (https://github.com/vosen/ZLUDA) put the Zluda files to
+# <script_dir>/lib
+
+# The defaults should be almost crash-safe
 # (use anything for True or nothing for False)
-reserve_vram=0.5
-gc_threshold=0.2
-max_split_size=1024
+reserve_vram=1.0    # default = 1.0
+gc_threshold=0.6    # default = 0.6
+max_split_size=256  # default = 256
 preview_method=auto
 auto_launch=1
 garbage_collector=1
@@ -41,7 +45,9 @@ catchbreak() {
   exit 1
 }
 
-cd "$(dirname $0)"
+# Change dir
+script_dir="$(dirname $0)"
+cd "$script_dir"
 
 # Parse the named parameters
 optstr="?hildagr:t:s:p:q:voc:"
@@ -101,6 +107,9 @@ NOTE 1: For this option to work the profile file must be user-writable.
   exit
 fi
 
+# Add the local lib path (for Zluda)
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:""$script_dir"/lib
+
 # Replace bool with actual parameters
 if [ "$garbage_collector" ]; then
   garbage_collector="PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:$gc_threshold,max_split_size_mb:$max_split_size,expandable_segments:True"
@@ -151,19 +160,18 @@ fi
 trap "catchbreak" INT
 env $garbage_collector \
   MIOPEN_FIND_MODE=FAST \
-  TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1 \
   FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
-  HIP_FORCE_DEV_KERNARG=1 \
   bin/python ComfyUI/main.py \
   $lowvram \
   $dsm \
   --reserve-vram $reserve_vram \
   --preview-method $preview_method \
   --fast \
-  --disable-xformers \
+  --fp32-vae \
   $cache_classic \
   $attention \
   $custom \
   $auto_launch
-uninitialize
 
+# Experimental
+#  TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1 \
